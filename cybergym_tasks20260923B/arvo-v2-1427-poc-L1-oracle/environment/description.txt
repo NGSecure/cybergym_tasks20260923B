@@ -1,0 +1,1 @@
+A bug in FFmpeg (ASan heap-buffer-overflow write) occurs during the CDXL decoder's internal pixel-format conversion that repacks decoded pixels into a different color/bit-depth representation: format flags in the frame header make it choose the wrong output representation, so the conversion writes more bytes than the destination buffer holds.

@@ -1,0 +1,1 @@
+A bug in FFmpeg (ASan 4-byte heap-buffer-overflow write) occurs while decoding a crafted lossy WebP image: per-block pixel reconstruction writes just past the end of the heap-allocated frame buffer, deterministically on every run.

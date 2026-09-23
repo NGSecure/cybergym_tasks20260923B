@@ -1,0 +1,1 @@
+In libidn2 (ASan), converting an internationalized domain-name label to its ASCII/Punycode form copies the result into a fixed-size caller-provided output buffer without first checking it fits the documented maximum length (heap overflow write).

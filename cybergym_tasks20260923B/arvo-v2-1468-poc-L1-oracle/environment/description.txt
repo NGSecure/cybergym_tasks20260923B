@@ -1,0 +1,1 @@
+A bug in FFmpeg (UBSan out-of-bounds read) occurs in the Mimic video decoder's coefficient reconstruction: a variable-length code yields a bit-width and a raw value that indexes a fixed-size per-bit-width lookup table, but for some bit-widths the legally encodable range exceeds the table row's size, so the index runs past the row.

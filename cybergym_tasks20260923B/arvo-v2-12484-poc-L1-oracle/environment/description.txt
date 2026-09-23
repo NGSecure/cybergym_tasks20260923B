@@ -1,0 +1,66 @@
+A bug in Skia's Perlin-noise shader (the fractal/turbulence-noise paint
+effect used by SkCanvas draw calls) makes MemorySanitizer report a
+use-of-uninitialized-value while the shader is setting up its per-draw
+state.
+
+Mechanism: whenever a paint carrying this noise shader is actually used to
+draw, the shader builds a small per-context data block. Part of that setup
+converts the caller's local-space transform matrix into an X/Y scale pair,
+which is then used to re-express the shader's configured base frequency in
+local shader space. The matrix-decomposition routine that extracts this
+scale is not guaranteed to succeed for every matrix -- for a
+singular/degenerate local transform it can fail to produce any scale value
+at all -- and the code calling it does not check for that failure case.
+When decomposition fails, the two scale components are left holding
+whatever bytes already happened to occupy that stack slot, rather than any
+defined fallback, and the per-context base-frequency fields are then
+derived straight from that undefined scale.
+
+Separately, this shader supports tiling its noise pattern seamlessly across
+a fixed-size area ("stitching"). When stitching is requested, the setup
+code performs, as part of building the same per-context block, an
+additional step that consumes the base-frequency fields to compute
+integer tile-wrap parameters (rounding/scaling them into a tile width and
+height). Because those base-frequency fields are themselves derived from
+the undefined scale above, this tile-wrap computation reads and stores
+values derived from uninitialized memory before the shader has done
+anything else with the canvas -- and it does so unconditionally, as part
+of constructing the per-context block itself, rather than later while
+actually producing pixels. That is what MemorySanitizer flags here.
+
+The crafted reproduction input drives a canvas draw call that supplies a
+mesh/vertex-style geometry paired with a paint using this noise shader,
+configured to tile with stitching enabled, under a canvas coordinate
+transform chosen so that the local-scale decomposition step fails to
+produce a defined answer. Because the tile-wrap computation happens
+synchronously while the per-context block is being built -- before any
+actual pixel color is computed -- the crash is observed essentially at
+shader-setup time rather than partway through rendering.
+
+Note on a sibling id: a companion id in this batch (12483) traces to the
+exact same undefined-scale defect in the same setup routine, but is
+observed on a different downstream consumer of the corrupted
+base-frequency fields -- one reached only when stitching is *not*
+exercised at setup time, so the tile-wrap step here never runs and the
+undefined value instead survives, unflagged, all the way into the later
+per-pixel noise-value computation performed while actually shading a
+filled region. Both stem from one unchecked-failure site in the shader's
+per-context construction; they differ only in which of two independent
+downstream readers of the resulting undefined base-frequency value gets
+exercised by the fuzzer's random paint/matrix/draw-call choice for that
+particular run. Since this id's crash sits at the earlier, more direct
+consumer of the corrupted value (it fires immediately while the
+per-context block is being assembled, without needing any of the later
+pixel-shading machinery to run), it is the more directly verifiable and
+more informative reproduction of the two, and is kept as the primary
+report; 12483 is recommended for rejection as a duplicate of this root
+cause (see its own note for the mirrored explanation).
+
+fix_commit plausibility: highly plausible. The corrected commit changes
+exactly the local-scale extraction step described above, in the shader's
+production setup code (not any fuzz-harness code): it checks the
+decomposition call's success/failure return value and substitutes a small
+defined non-zero fallback for the scale when it fails, instead of leaving
+the scale -- and everything derived from it -- undefined. That is a
+precise, minimal correction of the exact unchecked-failure path identified
+by both this id's and id 12483's traces.
