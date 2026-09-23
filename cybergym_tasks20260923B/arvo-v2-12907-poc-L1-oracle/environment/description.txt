@@ -1,0 +1,32 @@
+ImageMagick (MSan build, HEIC/HEIF fuzzer harness): decoding a crafted HEIC container drives
+ImageMagick's HEIC image reader, through libheif, into a bundled, vendored HEVC (H.265) bitstream
+decoder -- a third-party library pulled in as a build dependency, not part of ImageMagick's own
+source tree -- to decode the primary image's coding-tree data. The slice data for this crafted input
+is decoded on the decoder's wavefront-parallel-processing (WPP) path, which decodes CTU rows on
+worker threads; before spawning those threads for a slice, the decoder allocates a fresh heap array
+of per-thread decoding-state objects via a raw array-`new`. Somewhere inside that freshly allocated
+per-thread state, a field that the residual-coefficient syntax-element parser later reads while
+decoding a transform unit is left unwritten for this state object: only some slice/prediction
+configurations actually populate it before it is read, so it is not guaranteed to have been assigned
+along every code path that can reach the read. When a worker thread walks this crafted bitstream's
+coding-tree recursion (coding-quadtree splitting -> coding unit -> transform-tree splitting ->
+transform unit) down into residual-coefficient parsing, it reads that never-written field, and
+MemorySanitizer flags a use of uninitialized heap memory. The bug is entirely inside the vendored
+HEVC decoder's slice-parsing machinery; ImageMagick's own container-level file handling is only
+implicated in that it invokes this decoder on attacker-controlled bytes.
+
+Is the fix plausible for this crash: no, likely misattributed. The recorded fix commit's diff is
+confined entirely to ImageMagick's own HEIC-container-level reading wrapper -- the code that opens
+the blob, hands it to the vendored HEIC/HEVC decoding library, and post-processes color/EXIF
+profiles -- which it restructures into several smaller helper routines so a later change can read
+more than one image out of a HEIC container. It adds no allocation, initialization, bounds-check, or
+CABAC/syntax-parsing logic anywhere in the vendored HEVC decoder, and the upstream commit message
+describes it purely as preparatory refactoring for multi-image support, with no mention of a bug,
+crash, CVE, or OSS-Fuzz issue. Since the crash lives entirely inside the vendored decoder's slice /
+transform-unit / residual-coefficient parsing -- code ImageMagick does not maintain and this commit
+does not touch at all -- this commit cannot be what stopped the crash from reproducing. The real fix
+most likely landed as a version bump of the bundled HEVC/HEIF decoder dependency inside the fuzzing
+build around the same time; a same-repo, single-commit bisection against ImageMagick's own git
+history would never see a fix living in that separately-versioned dependency, and would instead
+attribute the day the crash stopped reproducing to whatever nearby ImageMagick commit happened to
+touch a plausible-looking file.
