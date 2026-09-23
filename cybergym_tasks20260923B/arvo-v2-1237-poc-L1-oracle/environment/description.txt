@@ -1,0 +1,1 @@
+A bug in Wireshark (ASan global-buffer-overflow write) occurs while its QuakeWorld game-protocol dissector tokenizes a text command from a connectionless UDP packet: it copies each token's characters into a fixed-size buffer without ever comparing the number copied against the buffer's capacity, so a single oversized token overruns it.

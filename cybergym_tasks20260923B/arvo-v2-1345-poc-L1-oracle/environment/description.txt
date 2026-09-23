@@ -1,0 +1,1 @@
+A bug in FFmpeg (ASan heap-buffer-overflow write) occurs while its DFA video decoder writes decoded pixels: the output buffer's remaining capacity is checked against the wrong threshold, so a crafted frame pushes the write one byte past the buffer's end near a decoded block boundary.

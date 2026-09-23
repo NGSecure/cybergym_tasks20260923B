@@ -1,0 +1,1 @@
+A bug in FFmpeg (ASan heap-buffer-overflow read) occurs while the subtitle decoder converts inline HTML-style markup tags into its internal styling form: a pattern of repeated or nested markup characters makes a dynamically grown text buffer be read one byte past its allocated end.

@@ -1,0 +1,1 @@
+A bug in FFmpeg (UBSan out-of-bounds array index) occurs while the AAC decoder processes Spectral Band Replication envelope/grid side-info: the bad index is not from the bits currently read but left over from an earlier related piece of bitstream that was rejected as malformed without fully undoing its effect on decoder state.

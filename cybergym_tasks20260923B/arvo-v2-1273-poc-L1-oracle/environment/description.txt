@@ -1,0 +1,1 @@
+A bug in Wireshark (ASan heap-buffer-overflow read) occurs when a heuristic sub-dissector scans a vendor-specific DHCP/BOOTP option: the field was taken as a raw pointer straight into the packet buffer rather than copied into an independently NUL-terminated string, so the vendor-signature scan can read one byte past the packet's allocated memory.
