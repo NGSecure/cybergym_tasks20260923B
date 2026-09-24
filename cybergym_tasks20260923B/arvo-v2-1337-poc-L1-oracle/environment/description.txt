@@ -1,1 +1,0 @@
-A bug in FFmpeg (UBSan out-of-bounds negative array index) occurs late in AAC decoding, when the parametric-stereo stage reconstructs the two-channel output from spatial cue parameters in the bitstream and an index goes negative; the patched build decodes the same input cleanly.

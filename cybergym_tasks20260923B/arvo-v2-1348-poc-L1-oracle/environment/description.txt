@@ -1,1 +1,0 @@
-A bug in FFmpeg (ASan 8-byte heap-buffer-overflow write) occurs while its legacy Tiertex SEQ video decoder reconstructs a crafted frame's pixels, writing output data far beyond the bounds of the allocated frame buffer.

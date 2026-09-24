@@ -1,1 +1,0 @@
-A bug in Wireshark (ASan stack-use-after-return read) occurs in its IEEE 802.11 dissector: a small flag computed while another dissection routine's stack frame was live is stashed as a raw pointer into per-packet data rather than copied by value, so when tagged-field parsing later reads it back the originating stack frame has already returned.

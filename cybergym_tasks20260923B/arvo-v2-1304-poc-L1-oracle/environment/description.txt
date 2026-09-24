@@ -1,1 +1,0 @@
-A bug in GnuTLS (ASan heap-use-after-free read) occurs while parsing a PKCS#12 container: when a malformed embedded certificate-revocation-list entry fails to import, a structure freed during that error-path cleanup is referenced again later in the same parsing pass instead of being treated as gone.

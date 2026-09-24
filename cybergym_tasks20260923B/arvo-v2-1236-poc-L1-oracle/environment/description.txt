@@ -1,1 +1,0 @@
-A bug in Wireshark (ASan heap-buffer-overflow read) occurs while its DOF protocol dissector decodes a variable-length compressed integer holding an object-identifier field's size: the byte count derived from a size-selector byte is never checked against how much of the buffer remains, so a crafted selector reads one byte past the end.
