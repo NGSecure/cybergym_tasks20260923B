@@ -1,0 +1,3 @@
+Disassembling an AArch64 SVE instruction whose textual operand list combines a scalable-vector register operand with a following element/vector-index operand triggers a negative array index in the instruction printer.
+
+Root cause: the operand-printing routine that renders the SVE vector register never records the operand into the instruction's detail operand array and never advances the running operand counter. When the printer then renders the trailing vector-index operand, it indexes the detail array using (counter - 1), assuming the vector register already claimed a slot; since the counter was left at zero, this underflows to index -1, producing an out-of-bounds array access.
